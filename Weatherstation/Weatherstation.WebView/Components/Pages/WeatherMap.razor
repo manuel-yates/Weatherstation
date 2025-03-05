@@ -1,0 +1,225 @@
+@page "/map"
+@using Weatherstation.WebView.Models
+@using Weatherstation.WebView.Services
+@inject WeatherService WeatherService
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Wetterkarte</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge">
+    <MudPaper Class="pa-4 mb-4">
+        <MudText Typo="Typo.h4">Wetterkarte</MudText>
+        <MudText Typo="Typo.subtitle1">Aktuelle Wetterdaten aller Stationen auf der Karte.</MudText>
+    </MudPaper>
+
+    @if (_isLoading)
+    {
+    <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+    }
+    else
+    {
+    <MudGrid>
+        <MudItem xs="12" md="9">
+            <MudPaper Class="pa-2" Style="height: 600px;" Elevation="3">
+                <div id="weather-map" style="width: 100%; height: 100%;"></div>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" md="3">
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudText Typo="Typo.h6" Class="mb-2">Legende</MudText>
+                <MudDivider Class="mb-3"/>
+
+                <MudText Typo="Typo.subtitle2" Class="mb-2">Wetterbedingungen</MudText>
+                <div class="d-flex align-center mb-1">
+                    <MudIcon Icon="@Icons.Material.Filled.WbSunny" Size="Size.Small" Class="mr-2" />
+                    <MudText Typo="Typo.body2">Sonnig / Klar</MudText>
+                </div>
+                <div class="d-flex align-center mb-1">
+                    <MudIcon Icon="@Icons.Material.Filled.Cloud" Size="Size.Small" Class="mr-2" />
+                    <MudText Typo="Typo.body2">Bewölkt / Teilweise bewölkt</MudText>
+                </div>
+                <div class="d-flex align-center mb-1">
+                    <MudIcon Icon="@Icons.Material.Filled.Umbrella" Size="Size.Small" Class="mr-2" />
+                    <MudText Typo="Typo.body2">Regnerisch</MudText>
+                </div>
+                <div class="d-flex align-center mb-1">
+                    <MudIcon Icon="@Icons.Material.Filled.AcUnit" Size="Size.Small" Class="mr-2" />
+                    <MudText Typo="Typo.body2">Schneefall</MudText>
+                </div>
+                <div class="d-flex align-center mb-1">
+                    <MudIcon Icon="@Icons.Material.Filled.Thunderstorm" Size="Size.Small" Class="mr-2" />
+                    <MudText Typo="Typo.body2">Gewitter / Stürmisch</MudText>
+                </div>
+
+                <MudDivider Class="my-3"/>
+
+                <MudText Typo="Typo.subtitle2" Class="mb-2">Temperatur</MudText>
+                <div class="d-flex align-center justify-space-between">
+                    <div style="width: 20px; height: 20px; background-color: #0000FF; border-radius: 4px;"></div>
+                    <MudText Typo="Typo.body2" Class="mx-2">Kalt</MudText>
+                    <div style="flex-grow: 1; height: 8px; background: linear-gradient(to right, #0000FF, #00FF00, #FF0000);"></div>
+                    <MudText Typo="Typo.body2" Class="mx-2">Warm</MudText>
+                    <div style="width: 20px; height: 20px; background-color: #FF0000; border-radius: 4px;"></div>
+                </div>
+
+                <MudDivider Class="my-3"/>
+
+                <MudText Typo="Typo.subtitle2" Class="mb-2">Daten anzeigen</MudText>
+                <MudSelect T="string" Label="Datenebene" @bind-Value="_selectedDataLayer">
+                    <MudSelectItem Value="@("temperature")">Temperatur</MudSelectItem>
+                    <MudSelectItem Value="@("precipitation")">Niederschlag</MudSelectItem>
+                    <MudSelectItem Value="@("wind")">Wind</MudSelectItem>
+                    <MudSelectItem Value="@("pressure")">Luftdruck</MudSelectItem>
+                </MudSelect>
+
+                <MudDivider Class="my-3"/>
+
+                @if (_selectedStation != null)
+                {
+                <MudText Typo="Typo.subtitle2">Ausgewählte Station</MudText>
+                <MudText Typo="Typo.h6">@_selectedStation.StationName</MudText>
+                <div class="d-flex align-center mb-1">
+                    <MudIcon Icon="@GetWeatherIcon(_selectedStation.WeatherCondition)" Size="Size.Small" Class="mr-2" />
+                    <MudText Typo="Typo.body2">@_selectedStation.WeatherCondition</MudText>
+                </div>
+                <div class="d-flex align-center mb-1">
+                    <MudIcon Icon="@Icons.Material.Filled.Thermostat" Size="Size.Small" Class="mr-2" />
+                    <MudText Typo="Typo.body2">@_selectedStation.TemperatureCelsius.ToString("F1")°C</MudText>
+                </div>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                           OnClick="@(() => NavigationManager.NavigateTo($"/stations/{_selectedStation.StationId}"))"
+                           Class="mt-2">
+                    Details anzeigen
+                </MudButton>
+                }
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+    }
+</MudContainer>
+
+@code {
+[Inject] private NavigationManager NavigationManager { get; set; }
+
+private bool _isLoading = true;
+private List<WeatherData> _weatherStations = new();
+private WeatherData? _selectedStation;
+private string _selectedDataLayer = "temperature";
+
+protected override async Task OnInitializedAsync()
+{
+await LoadWeatherStationsAsync();
+}
+
+protected override async Task OnAfterRenderAsync(bool firstRender)
+{
+if (firstRender && !_isLoading)
+{
+await InitializeMapAsync();
+}
+}
+
+private async Task LoadWeatherStationsAsync()
+{
+_isLoading = true;
+
+try
+{
+_weatherStations = await WeatherService.GetAllCurrentWeatherDataAsync();
+
+// Setze Default-Station, falls vorhanden
+_selectedStation = _weatherStations.FirstOrDefault();
+}
+finally
+{
+_isLoading = false;
+StateHasChanged();
+}
+}
+
+private async Task InitializeMapAsync()
+{
+try
+{
+// Karte initialisieren
+await JSRuntime.InvokeVoidAsync("initializeWeatherMap", "weather-map");
+
+// Stationen zur Karte hinzufügen
+foreach (var station in _weatherStations)
+{
+await AddStationToMapAsync(station);
+}
+
+// Zentriere Karte auf Deutschland
+await JSRuntime.InvokeVoidAsync("centerMap", 51.1657, 10.4515, 6);
+}
+catch (Exception ex)
+{
+Console.WriteLine($"Fehler beim Initialisieren der Karte: {ex.Message}");
+}
+}
+
+private async Task AddStationToMapAsync(WeatherData station)
+{
+try
+{
+string icon = GetWeatherIcon(station.WeatherCondition);
+string color = GetTemperatureColor(station.TemperatureCelsius);
+
+await JSRuntime.InvokeVoidAsync("addWeatherStation",
+station.StationId,
+station.Latitude,
+station.Longitude,
+station.StationName,
+station.TemperatureCelsius.ToString("F1") + "°C",
+station.WeatherCondition,
+icon,
+color);
+}
+catch (Exception ex)
+{
+Console.WriteLine($"Fehler beim Hinzufügen einer Station: {ex.Message}");
+}
+}
+
+private async Task SelectStationAsync(string stationId)
+{
+_selectedStation = _weatherStations.FirstOrDefault(s => s.StationId == stationId);
+StateHasChanged();
+}
+
+private string GetWeatherIcon(string condition)
+{
+return condition switch
+{
+"Klar" => Icons.Material.Filled.WbSunny,
+"Sonnig" => Icons.Material.Filled.WbSunny,
+"Teilweise bewölkt" => Icons.Material.Filled.Cloud,
+"Bewölkt" => Icons.Material.Filled.Cloud,
+"Regnerisch" => Icons.Material.Filled.Umbrella,
+"Stürmisch" => Icons.Material.Filled.Thunderstorm,
+"Schneefall" => Icons.Material.Filled.AcUnit,
+"Neblig" => Icons.Material.Filled.Cloud,
+"Gewitter" => Icons.Material.Filled.Thunderstorm,
+"Hagel" => Icons.Material.Filled.AcUnit,
+"Graupel" => Icons.Material.Filled.AcUnit,
+"Schwül" => Icons.Material.Filled.WbSunny,
+_ => Icons.Material.Filled.QuestionMark
+};
+}
+
+private string GetTemperatureColor(double temperature)
+{
+// Farben von Blau (kalt) über Grün (moderat) zu Rot (heiß)
+if (temperature <= -10) return "#0000FF"; // Tiefblau für sehr kalt
+if (temperature <= 0) return "#0066FF";   // Blau für kalt
+if (temperature <= 10) return "#00CCFF";  // Hellblau für kühl
+if (temperature <= 15) return "#00FFCC";  // Türkis für leicht kühl
+if (temperature <= 20) return "#00FF00";  // Grün für angenehm
+if (temperature <= 25) return "#66FF00";  // Hellgrün für warm
+if (temperature <= 30) return "#FFCC00";  // Gelb für sehr warm
+if (temperature <= 35) return "#FF6600";  // Orange für heiß
+return "#FF0000";                         // Rot für sehr heiß
+}
+}
