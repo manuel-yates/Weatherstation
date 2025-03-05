@@ -1,7 +1,290 @@
 ﻿@page "/"
+@using Weatherstation.WebView.Models
+@using Weatherstation.WebView.Services
+@inject WeatherService WeatherService
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Wetterstation Dashboard</PageTitle>
 
-<h1>Hello, world!</h1>
+<MudGrid>
+    <MudItem xs="12">
+        <MudPaper Class="pa-4 mb-4">
+            <MudText Typo="Typo.h4">Wetterstation Dashboard</MudText>
+            <MudText Typo="Typo.subtitle1">Willkommen zurück! Aktuelle Wetterdaten und Vorhersagen auf einen Blick.</MudText>
+        </MudPaper>
+    </MudItem>
 
-Welcome to your new app.
+    @if (_isLoading)
+    {
+        <MudItem xs="12">
+            <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+        </MudItem>
+    }
+    else
+    {
+        @if (_activeAlerts.Any())
+        {
+            <MudItem xs="12">
+                <MudPaper Class="pa-4 mb-4" Style="background-color: #ffebee;">
+                    <MudText Typo="Typo.h6">
+                        <MudIcon Icon="@Icons.Material.Filled.Warning" Color="Color.Error" Class="mr-2" />
+                        Aktive Wetterwarnungen (@_activeAlerts.Count)
+                    </MudText>
+                    <MudList T="string" Dense="true">
+                        @foreach (var alert in _activeAlerts.Take(3))
+                        {
+                            <MudListItem Icon="@Icons.Material.Filled.Warning" IconColor="GetSeverityColor(alert.Severity)">
+                                <b>@alert.Title</b> - @alert.Description
+                            </MudListItem>
+                        }
+                    </MudList>
+                    @if (_activeAlerts.Count > 3)
+                    {
+                        <MudButton Variant="Variant.Text" Color="Color.Error" 
+                                  OnClick="@(() => NavigationManager.NavigateTo("/alerts"))">
+                            Alle @_activeAlerts.Count Warnungen anzeigen
+                        </MudButton>
+                    }
+                </MudPaper>
+            </MudItem>
+        }
+
+        <MudItem xs="12" md="6" lg="3">
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudText Typo="Typo.subtitle1">Aktuelle Temperatur</MudText>
+                <MudText Typo="Typo.h3">@(_currentWeather?.TemperatureCelsius.ToString("F1"))°C</MudText>
+                <MudText Typo="Typo.body2">Gefühlt: @(_currentWeather?.FeelsLikeCelsius.ToString("F1"))°C</MudText>
+                <MudDivider Class="my-2" />
+                <MudText Typo="Typo.body2">
+                    <MudIcon Icon="@Icons.Material.Filled.ArrowUpward" Size="Size.Small" /> Max: @(_currentWeather?.TemperatureMax.ToString("F1"))°C
+                    <MudIcon Icon="@Icons.Material.Filled.ArrowDownward" Size="Size.Small" Class="ml-2" /> Min: @(_currentWeather?.TemperatureMin.ToString("F1"))°C
+                </MudText>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" md="6" lg="3">
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudText Typo="Typo.subtitle1">Niederschlag</MudText>
+                <MudText Typo="Typo.h3">@(_currentWeather?.PrecipitationMm.ToString("F1")) mm</MudText>
+                <MudText Typo="Typo.body2">Wahrscheinlichkeit: @(_currentWeather?.PrecipitationProbability.ToString("F0"))%</MudText>
+                <MudDivider Class="my-2" />
+                <MudText Typo="Typo.body2">
+                    <MudIcon Icon="@Icons.Material.Filled.WaterDrop" Size="Size.Small" /> @_currentWeather?.PrecipitationType
+                </MudText>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" md="6" lg="3">
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudText Typo="Typo.subtitle1">Luftfeuchtigkeit & Druck</MudText>
+                <MudText Typo="Typo.h3">@(_currentWeather?.HumidityPercentage.ToString("F0"))%</MudText>
+                <MudText Typo="Typo.body2">Taupunkt: @(_currentWeather?.DewPointCelsius.ToString("F1"))°C</MudText>
+                <MudDivider Class="my-2" />
+                <MudText Typo="Typo.body2">
+                    <MudIcon Icon="@Icons.Material.Filled.Speed" Size="Size.Small" /> Luftdruck: @(_currentWeather?.PressureHPa.ToString("F0")) hPa
+                </MudText>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" md="6" lg="3">
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudText Typo="Typo.subtitle1">Wind</MudText>
+                <MudText Typo="Typo.h3">@(_currentWeather?.WindSpeedKmh.ToString("F1")) km/h</MudText>
+                <MudText Typo="Typo.body2">Richtung: @_currentWeather?.WindDirectionCardinal (@_currentWeather?.WindDirectionDegrees.ToString("F0"))°</MudText>
+                <MudDivider Class="my-2" />
+                <MudText Typo="Typo.body2">
+                    <MudIcon Icon="@Icons.Material.Filled.Air" Size="Size.Small" /> Böen: @(_currentWeather?.WindGustKmh.ToString("F1")) km/h
+                </MudText>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" md="6">
+            <MudPaper Class="pa-4">
+                <MudText Typo="Typo.h6">Vorhersage heute</MudText>
+                <MudGrid>
+                    @foreach (var forecast in _hourlyForecasts.Take(8))
+                    {
+                        <MudItem xs="3">
+                            <div class="d-flex flex-column align-center">
+                                <MudText Typo="Typo.body2">@forecast.ForecastTime.ToString("HH:mm")</MudText>
+                                <MudIcon Icon="@GetWeatherIcon(forecast.WeatherCondition)" />
+                                <MudText Typo="Typo.h6">@forecast.TemperatureCelsius.ToString("F0")°</MudText>
+                                <MudText Typo="Typo.caption">@forecast.PrecipitationProbability.ToString("F0")%</MudText>
+                            </div>
+                        </MudItem>
+                    }
+                </MudGrid>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" md="6">
+            <MudPaper Class="pa-4">
+                <MudText Typo="Typo.h6">7-Tage-Vorhersage</MudText>
+                <MudList T="string" Dense="true">
+                    @foreach (var forecast in _dailyForecasts.Take(7))
+                    {
+                        <MudListItem>
+                            <div class="d-flex justify-space-between align-center" style="width: 100%;">
+                                <div class="d-flex align-center">
+                                    <MudIcon Icon="@GetWeatherIcon(forecast.WeatherCondition)" Class="mr-2" />
+                                    <div>
+                                        <MudText Typo="Typo.body1">@forecast.ForecastDate.ToString("dddd")</MudText>
+                                        <MudText Typo="Typo.caption">@forecast.WeatherCondition</MudText>
+                                    </div>
+                                </div>
+                                <div class="d-flex align-center">
+                                    <MudText Typo="Typo.body2" Class="mr-2">@forecast.TemperatureMinCelsius.ToString("F0")°</MudText>
+                                    <MudProgressLinear Value="@GetTemperaturePercentage(forecast)" Color="Color.Primary" Class="mx-4" Style="min-width: 80px;" />
+                                    <MudText Typo="Typo.body2">@forecast.TemperatureMaxCelsius.ToString("F0")°</MudText>
+                                </div>
+                            </div>
+                        </MudListItem>
+                    }
+                </MudList>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" lg="6">
+            <MudPaper Class="pa-4">
+                <MudText Typo="Typo.h6">Temperaturverlauf (letzte 7 Tage)</MudText>
+                <MudChart ChartType="ChartType.Line" ChartSeries="@_temperatureSeries" XAxisLabels="@_temperatureLabels" Width="100%" Height="300px"></MudChart>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" lg="6">
+            <MudPaper Class="pa-4">
+                <MudText Typo="Typo.h6">Niederschlag (letzte 7 Tage)</MudText>
+                <MudChart ChartType="ChartType.Bar" ChartSeries="@_precipitationSeries" XAxisLabels="@_precipitationLabels" Width="100%" Height="300px"></MudChart>
+            </MudPaper>
+        </MudItem>
+    }
+</MudGrid>
+
+@code {
+    [Inject] private NavigationManager NavigationManager { get; set; }
+
+    private bool _isLoading = true;
+    private WeatherData _currentWeather;
+    private List<WeatherAlert> _activeAlerts = new();
+    private List<HourlyForecast> _hourlyForecasts = new();
+    private List<DailyForecast> _dailyForecasts = new();
+    private List<HistoricalWeatherData> _historicalData = new();
+
+    // Chart-Daten
+    private List<ChartSeries> _temperatureSeries = new();
+    private string[] _temperatureLabels = Array.Empty<string>();
+    private List<ChartSeries> _precipitationSeries = new();
+    private string[] _precipitationLabels = Array.Empty<string>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        _isLoading = true;
+
+        try
+        {
+            // Standard-Station Berlin (kann später aus Benutzereinstellungen kommen)
+            string defaultStationId = "BER001";
+
+            // Aktuelle Wetterdaten laden
+            _currentWeather = await WeatherService.GetCurrentWeatherDataAsync(defaultStationId);
+
+            // Aktive Warnungen laden
+            _activeAlerts = await WeatherService.GetActiveAlertsAsync();
+
+            // Stündliche Vorhersagen laden
+            _hourlyForecasts = await WeatherService.GetHourlyForecastAsync(defaultStationId, 24);
+
+            // Tägliche Vorhersagen laden
+            _dailyForecasts = await WeatherService.GetDailyForecastAsync(defaultStationId, 7);
+
+            // Historische Daten für Charts laden
+            _historicalData = await WeatherService.GetTemperatureChartDataAsync(defaultStationId, 7);
+
+            PrepareChartData();
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void PrepareChartData()
+    {
+        // Temperatur-Chart vorbereiten
+        var temperatureData = _historicalData
+            .OrderBy(h => h.Date)
+            .Select(h => h.AvgTemperatureCelsius)
+            .ToArray();
+
+        _temperatureLabels = _historicalData
+            .OrderBy(h => h.Date)
+            .Select(h => h.Date.ToString("dd.MM."))
+            .ToArray();
+
+        _temperatureSeries = new List<ChartSeries>
+        {
+            new ChartSeries { Name = "Durchschnittstemperatur", Data = temperatureData }
+        };
+
+        // Niederschlags-Chart vorbereiten
+        var precipitationData = _historicalData
+            .OrderBy(h => h.Date)
+            .Select(h => h.TotalPrecipitationMm)
+            .ToArray();
+
+        _precipitationLabels = _historicalData
+            .OrderBy(h => h.Date)
+            .Select(h => h.Date.ToString("dd.MM."))
+            .ToArray();
+
+        _precipitationSeries = new List<ChartSeries>
+        {
+            new ChartSeries { Name = "Niederschlag (mm)", Data = precipitationData }
+        };
+    }
+
+    private string GetWeatherIcon(string condition)
+    {
+        return condition switch
+        {
+            "Klar" => Icons.Material.Filled.WbSunny,
+            "Sonnig" => Icons.Material.Filled.WbSunny,
+            "Teilweise bewölkt" => Icons.Material.Filled.Cloud,
+            "Bewölkt" => Icons.Material.Filled.Cloud,
+            "Regnerisch" => Icons.Material.Filled.Umbrella,
+            "Stürmisch" => Icons.Material.Filled.Thunderstorm,
+            "Schneefall" => Icons.Material.Filled.AcUnit,
+            "Neblig" => Icons.Material.Filled.Cloud,
+            _ => Icons.Material.Filled.QuestionMark
+        };
+    }
+
+    private double GetTemperaturePercentage(DailyForecast forecast)
+    {
+        // Einfache Normalisierung für die Temperatur-Balkenlänge
+        const double minTemp = -10;
+        const double maxTemp = 40;
+        double currentMin = forecast.TemperatureMinCelsius;
+        double currentMax = forecast.TemperatureMaxCelsius;
+        double range = maxTemp - minTemp;
+
+        double percentage = ((currentMax - currentMin) / range) * 100;
+        return Math.Min(percentage, 100);
+    }
+
+    private Color GetSeverityColor(string severity)
+    {
+        return severity switch
+        {
+            "Niedrig" => Color.Info,
+            "Mittel" => Color.Warning,
+            "Hoch" => Color.Error,
+            "Extrem" => Color.Error,
+            _ => Color.Default
+        };
+    }
+}

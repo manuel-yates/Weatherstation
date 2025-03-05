@@ -1,0 +1,295 @@
+@page "/charts/temperature"
+@inject WeatherService WeatherService
+@using MudBlazor.Charts
+@using Weatherstation.WebView.Models
+@using Weatherstation.WebView.Services
+
+<PageTitle>Temperaturdiagramm</PageTitle>
+
+<MudContainer>
+    <MudPaper Class="pa-4 mb-4">
+        <MudText Typo="Typo.h4">Temperaturanalyse</MudText>
+        <MudText Typo="Typo.subtitle1">Detaillierte Temperaturanalyse über verschiedene Zeiträume.</MudText>
+    </MudPaper>
+
+    @if (_isLoading)
+    {
+        <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+    }
+    else
+    {
+        <MudGrid>
+            <MudItem xs="12" sm="6" md="3">
+                <MudSelect T="string" Label="Station" ValueChanged="OnStationChanged">
+                    @foreach (var station in _stations)
+                    {
+                        <MudSelectItem Value="@station.Id">@station.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="3">
+                <MudSelect T="int" Label="Zeitraum" ValueChanged="OnDaysChanged">
+                    <MudSelectItem Value="7">1 Woche</MudSelectItem>
+                    <MudSelectItem Value="30">1 Monat</MudSelectItem>
+                    <MudSelectItem Value="90">3 Monate</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="3">
+                <MudSelect T="ChartType" Label="Diagrammtyp" ValueChanged="OnChartTypeChanged">
+                    <MudSelectItem Value="ChartType.Line">Liniendiagramm</MudSelectItem>
+                    <MudSelectItem Value="ChartType.Bar">Balkendiagramm</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="3">
+                <MudCheckBox T="bool" @bind-Checked="_showMinMax" Label="Min/Max anzeigen" Color="Color.Primary" />
+            </MudItem>
+        </MudGrid>
+
+        <MudDivider Class="my-4" />
+
+        <MudPaper Class="pa-4 mb-4" Elevation="3">
+            <MudText Typo="Typo.h6" Class="mb-3">Temperaturverlauf - @_stationName</MudText>
+            <MudChart ChartType="@_chartType" ChartSeries="@_temperatureSeries" XAxisLabels="@_temperatureLabels" 
+                      Width="100%" Height="400px">
+                <CustomGraphics>
+                    <MudText Typo="Typo.body2" Align="Align.Center">Zeitraum: @_startDate.ToString("dd.MM.yyyy") - @_endDate.ToString("dd.MM.yyyy")</MudText>
+                </CustomGraphics>
+            </MudChart>
+        </MudPaper>
+
+        <MudGrid>
+            <MudItem xs="12" md="6">
+                <MudPaper Class="pa-4" Elevation="2">
+                    <MudText Typo="Typo.h6" Class="mb-3">Statistik</MudText>
+                    <MudGrid>
+                        <MudItem xs="6">
+                            <MudText Typo="Typo.body1">
+                                <strong>Durchschnitt:</strong> @_averageTemp.ToString("F1")°C
+                            </MudText>
+                        </MudItem>
+                        <MudItem xs="6">
+                            <MudText Typo="Typo.body1">
+                                <strong>Median:</strong> @_medianTemp.ToString("F1")°C
+                            </MudText>
+                        </MudItem>
+                        <MudItem xs="6">
+                            <MudText Typo="Typo.body1">
+                                <strong>Minimum:</strong> @_minTemp.ToString("F1")°C
+                            </MudText>
+                        </MudItem>
+                        <MudItem xs="6">
+                            <MudText Typo="Typo.body1">
+                                <strong>Maximum:</strong> @_maxTemp.ToString("F1")°C
+                            </MudText>
+                        </MudItem>
+                        <MudItem xs="6">
+                            <MudText Typo="Typo.body1">
+                                <strong>Standardabweichung:</strong> @_stdDevTemp.ToString("F1")°C
+                            </MudText>
+                        </MudItem>
+                        <MudItem xs="6">
+                            <MudText Typo="Typo.body1">
+                                <strong>Temperaturspanne:</strong> @(_maxTemp - _minTemp).ToString("F1")°C
+                            </MudText>
+                        </MudItem>
+                    </MudGrid>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" md="6">
+                <MudPaper Class="pa-4" Elevation="2">
+                    <MudText Typo="Typo.h6" Class="mb-3">Trends</MudText>
+                    <MudList T="string">
+                        <MudListItem Icon="@(_temperatureTrend > 0 ? Icons.Material.Filled.TrendingUp : Icons.Material.Filled.TrendingDown)" 
+                                     IconColor="@(_temperatureTrend > 0 ? Color.Error : Color.Success)">
+                            <div>
+                                <MudText Typo="Typo.body1">
+                                    @(_temperatureTrend > 0 ? "Steigende" : "Fallende") Tendenz
+                                </MudText>
+                                <MudText Typo="Typo.body2">
+                                    @Math.Abs(_temperatureTrend).ToString("F1")°C pro Woche
+                                </MudText>
+                            </div>
+                        </MudListItem>
+                        <MudListItem Icon="@(_maxTempDay == DateTime.Today ? Icons.Material.Filled.Thermostat : Icons.Material.Filled.Today)">
+                            <div>
+                                <MudText Typo="Typo.body1">Wärmster Tag: @_maxTempDay.ToString("dd.MM.yyyy")</MudText>
+                                <MudText Typo="Typo.body2">@_maxTemp.ToString("F1")°C</MudText>
+                            </div>
+                        </MudListItem>
+                        <MudListItem Icon="@(_minTempDay == DateTime.Today ? Icons.Material.Filled.AcUnit : Icons.Material.Filled.Today)">
+                            <div>
+                                <MudText Typo="Typo.body1">Kältester Tag: @_minTempDay.ToString("dd.MM.yyyy")</MudText>
+                                <MudText Typo="Typo.body2">@_minTemp.ToString("F1")°C</MudText>
+                            </div>
+                        </MudListItem>
+                    </MudList>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+    }
+</MudContainer>
+
+@code {
+    private bool _isLoading = true;
+    private string _selectedStationId = "BER001";
+    private string _stationName = "Berlin Mitte";
+    private int _selectedDays = 30;
+    private ChartType _chartType = ChartType.Line;
+    private bool _showMinMax = false;
+
+    private List<(string Id, string Name)> _stations = new();
+    private List<HistoricalWeatherData> _historicalData = new();
+
+    // Chart-Daten
+    private List<ChartSeries> _temperatureSeries = new();
+    private string[] _temperatureLabels = Array.Empty<string>();
+
+    // Statistik
+    private double _averageTemp = 0;
+    private double _medianTemp = 0;
+    private double _minTemp = 0;
+    private double _maxTemp = 0;
+    private double _stdDevTemp = 0;
+    private double _temperatureTrend = 0;
+    private DateTime _maxTempDay = DateTime.Today;
+    private DateTime _minTempDay = DateTime.Today;
+    private DateTime _startDate = DateTime.Today.AddDays(-30);
+    private DateTime _endDate = DateTime.Today;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _stations = await WeatherService.GetWeatherStationsAsync();
+        await LoadChartDataAsync();
+    }
+
+    private async Task OnStationChanged(string stationId)
+    {
+        _selectedStationId = stationId;
+        var stationInfo = _stations.FirstOrDefault(s => s.Id == stationId);
+        if (stationInfo != default)
+        {
+            _stationName = stationInfo.Name;
+        }
+        await LoadChartDataAsync();
+    }
+
+    private async Task OnDaysChanged(int days)
+    {
+        _selectedDays = days;
+        await LoadChartDataAsync();
+    }
+
+    private async Task OnChartTypeChanged(ChartType chartType)
+    {
+        _chartType = chartType;
+        await LoadChartDataAsync();
+    }
+
+    private async Task LoadChartDataAsync()
+    {
+        _isLoading = true;
+
+        try
+        {
+            _startDate = DateTime.Today.AddDays(-_selectedDays);
+            _endDate = DateTime.Today;
+
+            _historicalData = await WeatherService.GetHistoricalDataAsync(
+                _selectedStationId, _startDate, _endDate);
+
+            PrepareChartData();
+            CalculateStatistics();
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void PrepareChartData()
+    {
+        var sortedData = _historicalData.OrderBy(h => h.Date).ToList();
+
+        _temperatureLabels = sortedData
+            .Select(h => h.Date.ToString("dd.MM."))
+            .ToArray();
+
+        var avgTemps = sortedData
+            .Select(h => h.AvgTemperatureCelsius)
+            .ToArray();
+
+        _temperatureSeries = new List<ChartSeries>
+        {
+            new ChartSeries { Name = "Durchschnittstemperatur", Data = avgTemps }
+        };
+
+        if (_showMinMax)
+        {
+            var minTemps = sortedData
+                .Select(h => h.MinTemperatureCelsius)
+                .ToArray();
+
+            var maxTemps = sortedData
+                .Select(h => h.MaxTemperatureCelsius)
+                .ToArray();
+
+            _temperatureSeries.Add(new ChartSeries { Name = "Minimaltemperatur", Data = minTemps });
+            _temperatureSeries.Add(new ChartSeries { Name = "Maximaltemperatur", Data = maxTemps });
+        }
+    }
+
+    private void CalculateStatistics()
+    {
+        if (_historicalData.Any())
+        {
+            // Berechne Durchschnitt
+            _averageTemp = _historicalData.Average(h => h.AvgTemperatureCelsius);
+
+            // Berechne Median
+            var sortedTemps = _historicalData
+                .Select(h => h.AvgTemperatureCelsius)
+                .OrderBy(t => t)
+                .ToList();
+
+            int count = sortedTemps.Count;
+            if (count % 2 == 0)
+            {
+                _medianTemp = (sortedTemps[count / 2 - 1] + sortedTemps[count / 2]) / 2;
+            }
+            else
+            {
+                _medianTemp = sortedTemps[count / 2];
+            }
+
+            // Min, Max und Tage
+            var minData = _historicalData.OrderBy(h => h.MinTemperatureCelsius).First();
+            var maxData = _historicalData.OrderByDescending(h => h.MaxTemperatureCelsius).First();
+            _minTemp = minData.MinTemperatureCelsius;
+            _maxTemp = maxData.MaxTemperatureCelsius;
+            _minTempDay = minData.Date;
+            _maxTempDay = maxData.Date;
+
+            // Standardabweichung
+            double variance = _historicalData
+                .Select(h => Math.Pow(h.AvgTemperatureCelsius - _averageTemp, 2))
+                .Average();
+            _stdDevTemp = Math.Sqrt(variance);
+
+            // Temperaturtrend (einfache lineare Regression)
+            if (_historicalData.Count > 7)
+            {
+                var weekAverages = _historicalData
+                    .GroupBy(h => (h.Date - _startDate).Days / 7)
+                    .Select(g => (WeekIndex: g.Key, AvgTemp: g.Average(h => h.AvgTemperatureCelsius)))
+                    .OrderBy(w => w.WeekIndex)
+                    .ToList();
+
+                if (weekAverages.Count > 1)
+                {
+                    // Einfacher Trend: Letzte Woche - Erste Woche
+                    _temperatureTrend = weekAverages.Last().AvgTemp - weekAverages.First().AvgTemp;
+                }
+            }
+        }
+    }
+}

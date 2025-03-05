@@ -1,0 +1,125 @@
+@page "/alerts"
+@using Weatherstation.WebView.Models
+@using Weatherstation.WebView.Services
+@inject WeatherService WeatherService
+
+<PageTitle>Wetterwarnungen</PageTitle>
+
+<MudContainer>
+    <MudPaper Class="pa-4 mb-4">
+        <MudText Typo="Typo.h4">Wetterwarnungen</MudText>
+        <MudText Typo="Typo.subtitle1">Aktuelle Wetterwarnungen und Gefahrenmeldungen.</MudText>
+    </MudPaper>
+
+    @if (_isLoading)
+    {
+        <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+    }
+    else if (!_alerts.Any())
+    {
+        <MudAlert Severity="Severity.Success" Class="mb-4">
+            Aktuell liegen keine Wetterwarnungen vor.
+        </MudAlert>
+    }
+    else
+    {
+        <MudGrid>
+            @foreach (var alert in _alerts)
+            {
+                <MudItem xs="12">
+                    <MudCard Elevation="3" Class="mb-4" Style="@GetSeverityBorderStyle(alert.Severity)">
+                        <MudCardHeader>
+                            <CardHeaderAvatar>
+                                <MudAvatar Color="@GetSeverityColor(alert.Severity)">
+                                    <MudIcon Icon="@Icons.Material.Filled.Warning" />
+                                </MudAvatar>
+                            </CardHeaderAvatar>
+                            <CardHeaderContent>
+                                <MudText Typo="Typo.h6">@alert.Title</MudText>
+                                <MudText Typo="Typo.caption">
+                                    @alert.AlertType • @alert.Severity • Quelle: @alert.SourceName
+                                </MudText>
+                            </CardHeaderContent>
+                            <CardHeaderActions>
+                                <MudChip T="string" Color="@GetSeverityColor(alert.Severity)" Size="Size.Small">
+                                    @alert.Severity
+                                </MudChip>
+                            </CardHeaderActions>
+                        </MudCardHeader>
+                        <MudCardContent>
+                            <MudText>@alert.Description</MudText>
+                            <MudDivider Class="my-3" />
+                            <MudText Typo="Typo.body2">
+                                <strong>Betroffenes Gebiet:</strong> @alert.AreaAffected
+                            </MudText>
+                            <MudText Typo="Typo.body2">
+                                <strong>Gültig von:</strong> @alert.ValidFrom.ToString("dd.MM.yyyy HH:mm") bis @alert.ValidUntil.ToString("dd.MM.yyyy HH:mm")
+                            </MudText>
+                            <MudText Typo="Typo.body2">
+                                <strong>Ausgestellt am:</strong> @alert.IssuedAt.ToString("dd.MM.yyyy HH:mm")
+                            </MudText>
+                        </MudCardContent>
+                        <MudCardActions>
+                            <MudButton Variant="Variant.Text" Color="Color.Primary" 
+                                      OnClick="@(() => NavigationManager.NavigateTo($"/stations/{alert.WeatherData.StationId}"))">
+                                Station anzeigen
+                            </MudButton>
+                        </MudCardActions>
+                    </MudCard>
+                </MudItem>
+            }
+        </MudGrid>
+    }
+</MudContainer>
+
+@code {
+    [Inject] private NavigationManager NavigationManager { get; set; }
+
+    private bool _isLoading = true;
+    private List<WeatherAlert> _alerts = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAlertsAsync();
+    }
+
+    private async Task LoadAlertsAsync()
+    {
+        _isLoading = true;
+
+        try
+        {
+            _alerts = await WeatherService.GetActiveAlertsAsync();
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private Color GetSeverityColor(string severity)
+    {
+        return severity switch
+        {
+            "Niedrig" => Color.Info,
+            "Mittel" => Color.Warning,
+            "Hoch" => Color.Error,
+            "Extrem" => Color.Error,
+            _ => Color.Default
+        };
+    }
+
+    private string GetSeverityBorderStyle(string severity)
+    {
+        string color = severity switch
+        {
+            "Niedrig" => "#2196f3",
+            "Mittel" => "#ff9800",
+            "Hoch" => "#f44336",
+            "Extrem" => "#b71c1c",
+            _ => "#9e9e9e"
+        };
+
+        return $"border-left: 5px solid {color};";
+    }
+}

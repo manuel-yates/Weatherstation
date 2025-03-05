@@ -1,0 +1,263 @@
+@page "/forecasts"
+@using Weatherstation.WebView.Models
+@using Weatherstation.WebView.Services
+@inject WeatherService WeatherService
+
+<PageTitle>Wettervorhersage</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge">
+    <MudPaper Class="pa-4 mb-4">
+        <MudText Typo="Typo.h4">Wettervorhersage</MudText>
+        <MudText Typo="Typo.subtitle1">Detaillierte Vorhersage für die kommenden Tage.</MudText>
+    </MudPaper>
+
+    @if (_isLoading)
+    {
+        <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+    }
+    else
+    {
+        <MudGrid>
+            <MudItem xs="12" sm="6" md="4">
+                <MudSelect T="string" Label="Station wählen" Value="_selectedStationId" ValueChanged="OnStationChanged">
+                    @foreach (var station in _stations)
+                    {
+                        <MudSelectItem Value="@station.Id">@station.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="6" md="4">
+                <MudSelect T="int" Label="Zeitraum" Value="_forecastDays" ValueChanged="OnForecastDaysChanged">
+                    <MudSelectItem Value="3">3 Tage</MudSelectItem>
+                    <MudSelectItem Value="7">7 Tage</MudSelectItem>
+                    <MudSelectItem Value="14">14 Tage</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+        </MudGrid>
+
+        <MudDivider Class="my-4" />
+
+        @if (_currentWeather != null)
+        {
+            <MudPaper Class="pa-4 mb-4">
+                <MudGrid>
+                    <MudItem xs="12" md="6">
+                        <div class="d-flex">
+                            <MudIcon Icon="@GetWeatherIcon(_currentWeather.WeatherCondition)" Size="Size.Large" Class="mr-4" />
+                            <div>
+                                <MudText Typo="Typo.h4">@_currentWeather.TemperatureCelsius.ToString("F1")°C</MudText>
+                                <MudText Typo="Typo.subtitle1">@_currentWeather.WeatherCondition</MudText>
+                                <MudText Typo="Typo.body2">Gefühlt wie @_currentWeather.FeelsLikeCelsius.ToString("F1")°C</MudText>
+                            </div>
+                        </div>
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudGrid>
+                            <MudItem xs="6">
+                                <MudText Typo="Typo.body1">
+                                    <MudIcon Icon="@Icons.Material.Filled.Opacity" Size="Size.Small" Class="mr-2" />
+                                    Luftfeuchtigkeit: @_currentWeather.HumidityPercentage.ToString("F0")%
+                                </MudText>
+                            </MudItem>
+                            <MudItem xs="6">
+                                <MudText Typo="Typo.body1">
+                                    <MudIcon Icon="@Icons.Material.Filled.Air" Size="Size.Small" Class="mr-2" />
+                                    Wind: @_currentWeather.WindSpeedKmh.ToString("F1") km/h @_currentWeather.WindDirectionCardinal
+                                </MudText>
+                            </MudItem>
+                            <MudItem xs="6">
+                                <MudText Typo="Typo.body1">
+                                    <MudIcon Icon="@Icons.Material.Filled.WbSunny" Size="Size.Small" Class="mr-2" />
+                                    Sonnenaufgang: @(_currentWeather.Sunrise?.ToString("HH:mm"))
+                                </MudText>
+                            </MudItem>
+                            <MudItem xs="6">
+                                <MudText Typo="Typo.body1">
+                                    <MudIcon Icon="@Icons.Material.Filled.Bedtime" Size="Size.Small" Class="mr-2" />
+                                    Sonnenuntergang: @(_currentWeather.Sunset?.ToString("HH:mm"))
+                                </MudText>
+                            </MudItem>
+                        </MudGrid>
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+        }
+
+        <MudText Typo="Typo.h5" Class="mb-4">Stündliche Vorhersage</MudText>
+        <MudPaper Class="pa-4 mb-6" Elevation="2">
+            <div style="overflow-x: auto;">
+                <div style="display: flex; min-width: 1000px;">
+                    @foreach (var forecast in _hourlyForecasts)
+                    {
+                        <div class="hourly-forecast-item">
+                            <MudText Typo="Typo.caption">@forecast.ForecastTime.ToString("HH:mm")</MudText>
+                            <MudIcon Icon="@GetWeatherIcon(forecast.WeatherCondition)" />
+                            <MudText Typo="Typo.h6">@forecast.TemperatureCelsius.ToString("F0")°</MudText>
+                            <MudText Typo="Typo.caption">
+                                <MudIcon Icon="@Icons.Material.Filled.WaterDrop" Size="Size.Small" />
+                                @forecast.PrecipitationProbability.ToString("F0")%
+                            </MudText>
+                            <MudText Typo="Typo.caption">
+                                <MudIcon Icon="@Icons.Material.Filled.Air" Size="Size.Small" />
+                                @forecast.WindSpeedKmh.ToString("F0") km/h
+                            </MudText>
+                        </div>
+                    }
+                </div>
+            </div>
+        </MudPaper>
+
+        <MudText Typo="Typo.h5" Class="mb-4">@_forecastDays-Tage-Vorhersage</MudText>
+        <MudPaper Class="pa-4" Elevation="2">
+            <MudList T="string" Clickable="true">
+                @foreach (var forecast in _dailyForecasts)
+                {
+                    <MudListItem OnClick="@(() => ExpandForecast(forecast.Id))" InitiallyExpanded="forecast.Id == _dailyForecasts.FirstOrDefault()?.Id">
+                        <ChildContent>
+                        <div class="d-flex justify-space-between align-center" style="width: 100%;">
+                            <div class="d-flex align-center">
+                                <MudIcon Icon="@GetWeatherIcon(forecast.WeatherCondition)" Class="mr-3"/>
+                                <div>
+                                    <MudText Typo="Typo.h6">@forecast.ForecastDate.ToString("dddd, dd.MM.yyyy")</MudText>
+                                    <MudText Typo="Typo.body2">@forecast.WeatherCondition</MudText>
+                                </div>
+                            </div>
+                            <div>
+                                <MudText Typo="Typo.h6">@forecast.TemperatureMinCelsius.ToString("F0")° / @forecast.TemperatureMaxCelsius.ToString("F0")°</MudText>
+                                <MudText Typo="Typo.caption" Align="Align.Right">
+                                    <MudIcon Icon="@Icons.Material.Filled.WaterDrop" Size="Size.Small"/>
+                                    @forecast.PrecipitationProbability.ToString("F0")%
+                                </MudText>
+                            </div>
+                        </div>
+                            <MudGrid Class="mt-4">
+                                <MudItem xs="12" sm="6" md="3">
+                                    <MudPaper Class="pa-3" Elevation="0">
+                                        <MudText Typo="Typo.subtitle2">Temperatur</MudText>
+                                        <MudText Typo="Typo.body1">Min: @forecast.TemperatureMinCelsius.ToString("F1")°C</MudText>
+                                        <MudText Typo="Typo.body1">Max: @forecast.TemperatureMaxCelsius.ToString("F1")°C</MudText>
+                                        <MudText Typo="Typo.body2">Gefühlt: @forecast.FeelsLikeMinCelsius.ToString("F1")° - @forecast.FeelsLikeMaxCelsius.ToString("F1")°C</MudText>
+                                    </MudPaper>
+                                </MudItem>
+                                <MudItem xs="12" sm="6" md="3">
+                                    <MudPaper Class="pa-3" Elevation="0">
+                                        <MudText Typo="Typo.subtitle2">Wind & Niederschlag</MudText>
+                                        <MudText Typo="Typo.body1">Wind: @forecast.WindSpeedKmh.ToString("F1") km/h</MudText>
+                                        <MudText Typo="Typo.body1">Niederschlag: @forecast.PrecipitationMm.ToString("F1") mm</MudText>
+                                        <MudText Typo="Typo.body2">Wahrscheinlichkeit: @forecast.PrecipitationProbability.ToString("F0")%</MudText>
+                                    </MudPaper>
+                                </MudItem>
+                                <MudItem xs="12" sm="6" md="3">
+                                    <MudPaper Class="pa-3" Elevation="0">
+                                        <MudText Typo="Typo.subtitle2">Sonne & Mond</MudText>
+                                        <MudText Typo="Typo.body1">Sonnenaufgang: @forecast.Sunrise.ToString("HH:mm")</MudText>
+                                        <MudText Typo="Typo.body1">Sonnenuntergang: @forecast.Sunset.ToString("HH:mm")</MudText>
+                                        <MudText Typo="Typo.body2">Mondphase: @forecast.MoonPhaseDescription</MudText>
+                                    </MudPaper>
+                                </MudItem>
+                                <MudItem xs="12" sm="6" md="3">
+                                    <MudPaper Class="pa-3" Elevation="0">
+                                        <MudText Typo="Typo.subtitle2">Weitere Details</MudText>
+                                        <MudText Typo="Typo.body1">Luftfeuchtigkeit: @forecast.HumidityPercentage.ToString("F0")%</MudText>
+                                        <MudText Typo="Typo.body1">UV-Index: @forecast.UvIndex.ToString("F1")</MudText>
+                                        <MudText Typo="Typo.body2">Schneehöhe: @forecast.SnowDepthCm.ToString("F1") cm</MudText>
+                                    </MudPaper>
+                                </MudItem>
+                            </MudGrid>
+                        </ChildContent>
+                    </MudListItem>
+                    <MudDivider />
+                }
+            </MudList>
+        </MudPaper>
+    }
+</MudContainer>
+
+<style>
+    .hourly-forecast-item {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 12px;
+        min-width: 100px;
+    }
+</style>
+
+@code {
+    [Inject] private NavigationManager NavigationManager { get; set; }
+    [Parameter] [SupplyParameterFromQuery] public string? Station { get; set; }
+
+    private bool _isLoading = true;
+    private string _selectedStationId = "BER001";
+    private int _forecastDays = 7;
+    private List<(string Id, string Name)> _stations = new();
+    private WeatherData _currentWeather;
+    private List<HourlyForecast> _hourlyForecasts = new();
+    private List<DailyForecast> _dailyForecasts = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        _stations = await WeatherService.GetWeatherStationsAsync();
+
+        if (!string.IsNullOrEmpty(Station) && _stations.Any(s => s.Id == Station))
+        {
+            _selectedStationId = Station;
+        }
+        else if (_stations.Any())
+        {
+            _selectedStationId = _stations.First().Id;
+        }
+
+        await LoadForecastsAsync();
+    }
+
+    private async Task OnStationChanged(string stationId)
+    {
+        _selectedStationId = stationId;
+        await LoadForecastsAsync();
+    }
+
+    private async Task OnForecastDaysChanged(int days)
+    {
+        _forecastDays = days;
+        await LoadForecastsAsync();
+    }
+
+    private async Task LoadForecastsAsync()
+    {
+        _isLoading = true;
+
+        try
+        {
+            _currentWeather = await WeatherService.GetCurrentWeatherDataAsync(_selectedStationId);
+            _hourlyForecasts = await WeatherService.GetHourlyForecastAsync(_selectedStationId, 24);
+            _dailyForecasts = await WeatherService.GetDailyForecastAsync(_selectedStationId, _forecastDays);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void ExpandForecast(int forecastId)
+    {
+        // Diese Methode wird aufgerufen, wenn ein Benutzer auf einen Tagesvorhersage-Eintrag klickt
+        // Der Eintrag expandiert automatisch durch MudList/MudListItem-Funktionalität
+    }
+
+    private string GetWeatherIcon(string condition)
+    {
+        return condition switch
+        {
+            "Klar" => Icons.Material.Filled.WbSunny,
+            "Sonnig" => Icons.Material.Filled.WbSunny,
+            "Teilweise bewölkt" => Icons.Material.Filled.Cloud,
+            "Bewölkt" => Icons.Material.Filled.Cloud,
+            "Regnerisch" => Icons.Material.Filled.Umbrella,
+            "Stürmisch" => Icons.Material.Filled.Thunderstorm,
+            "Schneefall" => Icons.Material.Filled.AcUnit,
+            "Neblig" => Icons.Material.Filled.Cloud,
+            _ => Icons.Material.Filled.QuestionMark
+        };
+    }
+}

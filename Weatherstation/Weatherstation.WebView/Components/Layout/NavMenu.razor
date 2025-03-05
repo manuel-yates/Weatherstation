@@ -1,29 +1,44 @@
-﻿<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">Weatherstation.WebView</a>
-    </div>
-</div>
+﻿@using Weatherstation.WebView.Services
+@inject WeatherService WeatherService
 
-<input type="checkbox" title="Navigation menu" class="navbar-toggler"/>
+<MudNavMenu>
+    <MudText Typo="Typo.subtitle2" Class="px-4 mt-2 mud-text-secondary">Dashboard</MudText>
+    <MudDivider Class="my-2" />
 
-<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
-    <nav class="flex-column">
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
-            </NavLink>
-        </div>
+    <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Dashboard">Übersicht</MudNavLink>
+    <MudNavLink Href="/stations" Icon="@Icons.Material.Filled.LocationOn">Stationen</MudNavLink>
+    <MudNavLink Href="/forecasts" Icon="@Icons.Material.Filled.Today">Vorhersage</MudNavLink>
+    <MudNavLink Href="/alerts" Icon="@Icons.Material.Filled.Notifications" IconColor="Color.Error">
+        Warnungen
+        @if (_activeAlerts > 0)
+        {
+            <MudBadge Color="Color.Error" Content="@_activeAlerts" Overlap="true" Class="ml-2" />
+        }
+    </MudNavLink>
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="counter">
-                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Counter
-            </NavLink>
-        </div>
+    <MudText Typo="Typo.subtitle2" Class="px-4 mt-6 mud-text-secondary">Analyse</MudText>
+    <MudDivider Class="my-2" />
 
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="weather">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Weather
-            </NavLink>
-        </div>
-    </nav>
-</div>
+    <MudNavLink Href="/charts/temperature" Icon="@Icons.Material.Filled.ShowChart">Temperatur</MudNavLink>
+    <MudNavLink Href="/charts/precipitation" Icon="@Icons.Material.Filled.WaterDrop">Niederschlag</MudNavLink>
+    <MudNavLink Href="/charts/wind" Icon="@Icons.Material.Filled.Air">Wind</MudNavLink>
+    <MudNavLink Href="/charts/humidity" Icon="@Icons.Material.Filled.Opacity">Luftfeuchtigkeit</MudNavLink>
+    <MudNavLink Href="/charts/pressure" Icon="@Icons.Material.Filled.Speed">Luftdruck</MudNavLink>
+
+    <MudText Typo="Typo.subtitle2" Class="px-4 mt-6 mud-text-secondary">System</MudText>
+    <MudDivider Class="my-2" />
+
+    <MudNavLink Href="/settings" Icon="@Icons.Material.Filled.Settings">Einstellungen</MudNavLink>
+    <MudNavLink Href="/sensors" Icon="@Icons.Material.Filled.Sensors">Sensoren</MudNavLink>
+    <MudNavLink Href="/about" Icon="@Icons.Material.Filled.Info">Über</MudNavLink>
+</MudNavMenu>
+
+@code {
+    private int _activeAlerts = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var alerts = await WeatherService.GetActiveAlertsAsync();
+        _activeAlerts = alerts.Count;
+    }
+}

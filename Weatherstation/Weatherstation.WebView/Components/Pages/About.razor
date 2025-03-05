@@ -1,0 +1,103 @@
+@page "/about"
+
+<PageTitle>Über</PageTitle>
+
+<MudContainer>
+    <MudPaper Class="pa-4 mb-4">
+        <MudText Typo="Typo.h4">Über die Wetterstation</MudText>
+        <MudText Typo="Typo.subtitle1">Informationen über die Wetterstation-Software.</MudText>
+    </MudPaper>
+
+    <MudGrid>
+        <MudItem xs="12" md="6">
+            <MudCard Elevation="2" Class="mb-4">
+                <MudCardHeader>
+                    <CardHeaderAvatar>
+                        <MudAvatar Color="Color.Primary">MT</MudAvatar>
+                    </CardHeaderAvatar>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h6">Mission-Tomorrow</MudText>
+                        <MudText Typo="Typo.body2">Software für die Allgemeinheit</MudText>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudText>
+                        Mission-Tomorrow entwickelt innovative Software-Lösungen, um Menschen im Alltag zu helfen. 
+                        Unser Wetterstation-Dashboard ist ein Beispiel für unsere Bemühungen, komplexe Daten
+                        zugänglich und nützlich zu machen.
+                    </MudText>
+                    <MudText Class="mt-2">
+                        Diese Anwendung wurde mit ASP.NET Core Blazor und MudBlazor entwickelt, um eine moderne,
+                        reaktionsfähige Benutzeroberfläche zu bieten.
+                    </MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <MudItem xs="12" md="6">
+            <MudCard Elevation="2" Class="mb-4">
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h6">Technische Informationen</MudText>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudList T="string" Dense="true">
+                        <MudListItem Icon="@Icons.Material.Filled.Code">
+                            <MudText Typo="Typo.body1">Version: 1.0.0</MudText>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Architecture">
+                            <MudText Typo="Typo.body1">Framework: ASP.NET Core 8.0</MudText>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Dashboard">
+                            <MudText Typo="Typo.body1">UI: MudBlazor 6.16.0</MudText>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Storage">
+                            <MudText Typo="Typo.body1">Datenbank: Entity Framework Core (InMemory)</MudText>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.DataUsage">
+                            <MudText Typo="Typo.body1">Testdaten: Bogus 34.0.2</MudText>
+                        </MudListItem>
+                    </MudList>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <MudItem xs="12">
+            <MudCard Elevation="2">
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h6">Datenquellen und Lizenzen</MudText>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudText>
+                        Das Wetterstation-Dashboard verwendet Testdaten für Demonstrationszwecke. In einer Produktionsumgebung
+                        können die Daten von verschiedenen Quellen stammen:
+                    </MudText>
+                    <MudList T="string" Dense="true" Class="mt-2">
+                        <MudListItem Icon="@Icons.Material.Filled.Sensors">
+                            <MudText Typo="Typo.body1">Eigene Wetterstationen und Sensoren</MudText>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Api">
+                            <MudText Typo="Typo.body1">Öffentliche Wetter-APIs (z.B. DWD, OpenWeatherMap)</MudText>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Public">
+                            <MudText Typo="Typo.body1">Nationale Wetterdienste</MudText>
+                        </MudListItem>
+                    </MudList>
+                    <MudText Class="mt-4">
+                        Diese Software steht unter der MIT-Lizenz. Sie können den Quellcode nach Belieben verwenden,
+                        modifizieren und verteilen, solange der ursprüngliche Copyright-Hinweis beibehalten wird.
+                    </MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+
+    <div class="d-flex justify-center mt-6">
+        <MudText Typo="Typo.body2" Class="mud-text-secondary">
+            © @DateTime.Now.Year Mission-Tomorrow. Alle Rechte vorbehalten.
+        </MudText>
+    </div>
+</MudContainer>

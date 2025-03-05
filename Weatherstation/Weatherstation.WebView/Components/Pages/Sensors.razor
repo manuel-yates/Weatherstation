@@ -1,0 +1,226 @@
+@page "/sensors"
+@using Weatherstation.WebView.Models
+@using Weatherstation.WebView.Services
+@inject WeatherService WeatherService
+
+<PageTitle>Sensoren</PageTitle>
+
+<MudContainer>
+    <MudPaper Class="pa-4 mb-4">
+        <MudText Typo="Typo.h4">Sensoren und Geräte</MudText>
+        <MudText Typo="Typo.subtitle1">Übersicht über alle angeschlossenen Sensoren und Geräte.</MudText>
+    </MudPaper>
+
+    @if (_isLoading)
+    {
+        <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+    }
+    else
+    {
+        <MudGrid>
+            @foreach (var sensor in _sensors)
+            {
+                <MudItem xs="12" sm="6" md="4">
+                    <MudCard Elevation="2" Class="mb-4">
+                        <MudCardHeader>
+                            <CardHeaderAvatar>
+                                <MudAvatar Color="@(sensor.IsOnline ? Color.Success : Color.Error)">
+                                    <MudIcon Icon="@Icons.Material.Filled.Sensors" />
+                                </MudAvatar>
+                            </CardHeaderAvatar>
+                            <CardHeaderContent>
+                                <MudText Typo="Typo.h6">@sensor.SensorType</MudText>
+                                <MudText Typo="Typo.caption">ID: @sensor.Id • Station: @sensor.WeatherData.StationName</MudText>
+                            </CardHeaderContent>
+                            <CardHeaderActions>
+                                <MudChip T="Color" Color="@(sensor.IsOnline ? Color.Success : Color.Error)" Size="Size.Small">
+                                    @(sensor.IsOnline ? "Online" : "Offline")
+                                </MudChip>
+                            </CardHeaderActions>
+                        </MudCardHeader>
+                        <MudCardContent>
+                            <MudGrid>
+                                <MudItem xs="6">
+                                    <MudText Typo="Typo.body2">
+                                        <strong>Hersteller:</strong> @sensor.Manufacturer
+                                    </MudText>
+                                </MudItem>
+                                <MudItem xs="6">
+                                    <MudText Typo="Typo.body2">
+                                        <strong>Modell:</strong> @sensor.Model
+                                    </MudText>
+                                </MudItem>
+                                <MudItem xs="12">
+                                    <MudDivider Class="my-2" />
+                                </MudItem>
+                                <MudItem xs="12">
+                                    <MudText Typo="Typo.subtitle2">Genauigkeit</MudText>
+                                </MudItem>
+                                <MudItem xs="6">
+                                    <MudText Typo="Typo.body2">
+                                        <strong>Temperatur:</strong> ±@sensor.AccuracyTemperature.ToString("F1")°C
+                                    </MudText>
+                                </MudItem>
+                                <MudItem xs="6">
+                                    <MudText Typo="Typo.body2">
+                                        <strong>Luftfeuchtigkeit:</strong> ±@sensor.AccuracyHumidity.ToString("F1")%
+                                    </MudText>
+                                </MudItem>
+                                <MudItem xs="6">
+                                    <MudText Typo="Typo.body2">
+                                        <strong>Luftdruck:</strong> ±@sensor.AccuracyPressure.ToString("F1") hPa
+                                    </MudText>
+                                </MudItem>
+                                <MudItem xs="6">
+                                    <MudText Typo="Typo.body2">
+                                        <strong>Batterie:</strong> @sensor.BatteryLevel.ToString("F0")%
+                                    </MudText>
+                                </MudItem>
+                                <MudItem xs="12">
+                                    <MudDivider Class="my-2" />
+                                </MudItem>
+                                <MudItem xs="6">
+                                    <MudText Typo="Typo.body2">
+                                        <strong>Letzte Kalibrierung:</strong><br />
+                                        @sensor.LastCalibration.ToString("dd.MM.yyyy")
+                                    </MudText>
+                                </MudItem>
+                                <MudItem xs="6">
+                                    <MudText Typo="Typo.body2">
+                                        <strong>Letzte Wartung:</strong><br />
+                                        @sensor.LastMaintenance.ToString("dd.MM.yyyy")
+                                    </MudText>
+                                </MudItem>
+                            </MudGrid>
+                        </MudCardContent>
+                        <MudCardActions>
+                            <MudButton Variant="Variant.Text" Color="Color.Primary"
+                                       OnClick="@(() => ShowSensorDetails(sensor.Id))">
+                                Details
+                            </MudButton>
+                            <MudButton Variant="Variant.Text" Color="Color.Primary"
+                                       OnClick="@(() => NavigationManager.NavigateTo($"/stations/{sensor.WeatherData.StationId}"))">
+                                Station
+                            </MudButton>
+                        </MudCardActions>
+                    </MudCard>
+                </MudItem>
+            }
+        </MudGrid>
+    }
+
+    <MudDialog @bind-IsVisible="_sensorDialogVisible" Options="new DialogOptions { MaxWidth = MaxWidth.Medium }">
+        <TitleContent>
+            <MudText Typo="Typo.h6">Sensordetails</MudText>
+        </TitleContent>
+        <DialogContent>
+            @if (_selectedSensor != null)
+            {
+                <MudGrid>
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.h6">@_selectedSensor.SensorType</MudText>
+                        <MudText Typo="Typo.body2">@_selectedSensor.Manufacturer @_selectedSensor.Model</MudText>
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudDivider />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.subtitle1">Technische Details</MudText>
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudText Typo="Typo.body2">
+                            <strong>Seriennummer:</strong> SN-@_selectedSensor.Id.ToString("D6")
+                        </MudText>
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudText Typo="Typo.body2">
+                            <strong>Firmware:</strong> v1.2.5
+                        </MudText>
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudText Typo="Typo.body2">
+                            <strong>Installiert am:</strong> 01.01.2023
+                        </MudText>
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudText Typo="Typo.body2">
+                            <strong>Garantie bis:</strong> 31.12.2025
+                        </MudText>
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudDivider />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.subtitle1">Wartungsintervalle</MudText>
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudText Typo="Typo.body2">
+                            <strong>Kalibrierung:</strong> Alle 12 Monate
+                        </MudText>
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudText Typo="Typo.body2">
+                            <strong>Batteriewechsel:</strong> Alle 24 Monate
+                        </MudText>
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudText Typo="Typo.body2">
+                            <strong>Reinigung:</strong> Alle 6 Monate
+                        </MudText>
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudText Typo="Typo.body2">
+                            <strong>Inspektion:</strong> Alle 12 Monate
+                        </MudText>
+                    </MudItem>
+                </MudGrid>
+            }
+        </DialogContent>
+        <DialogActions>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CloseSensorDetails">Schließen</MudButton>
+        </DialogActions>
+    </MudDialog>
+</MudContainer>
+
+@code {
+    [Inject] private NavigationManager NavigationManager { get; set; }
+
+    private bool _isLoading = true;
+    private List<WeatherSensorInfo> _sensors = new();
+    private bool _sensorDialogVisible = false;
+    private WeatherSensorInfo _selectedSensor;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSensorsAsync();
+    }
+
+    private async Task LoadSensorsAsync()
+    {
+        _isLoading = true;
+
+        try
+        {
+            var weatherData = await WeatherService.GetAllCurrentWeatherDataAsync();
+            _sensors = weatherData
+                .Where(w => w.SensorInfo != null)
+                .Select(w => w.SensorInfo)
+                .ToList();
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private void ShowSensorDetails(int sensorId)
+    {
+        _selectedSensor = _sensors.FirstOrDefault(s => s.Id == sensorId);
+        _sensorDialogVisible = true;
+    }
+
+    private void CloseSensorDetails()
+    {
+        _sensorDialogVisible = false;
+    }
+}

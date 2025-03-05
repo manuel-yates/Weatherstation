@@ -49,3 +49,70 @@ h1:focus {
 .darker-border-checkbox.form-check-input {
     border-color: #929292;
 }
+
+/* Allgemeine Anpassungen */
+html, body {
+    font-family: 'Roboto', sans-serif;
+}
+
+/* Zusätzliche Stile für Wetter-Icons */
+.weather-icon {
+    font-size: 2rem;
+    margin-right: 0.5rem;
+}
+
+/* Styling für Temperatur-Anzeige */
+.temperature-display {
+    font-size: 3rem;
+    font-weight: 300;
+}
+
+/* Styling für Wetterwarnungs-Karten */
+.alert-card-high {
+    border-left: 4px solid #f44336;
+}
+
+.alert-card-medium {
+    border-left: 4px solid #ff9800;
+}
+
+.alert-card-low {
+    border-left: 4px solid #2196f3;
+}
+
+/* Anpassungen für mobile Ansicht */
+@media (max-width: 600px) {
+    .temperature-display {
+        font-size: 2.5rem;
+    }
+
+    .weather-icon {
+        font-size: 1.5rem;
+    }
+}
+
+/* Styling für stündliche Vorhersage */
+.hourly-forecast-container {
+    display: flex;
+    overflow-x: auto;
+    padding: 0.5rem 0;
+}
+
+.hourly-forecast-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    min-width: 80px;
+}
+
+/* Animation für Ladevorgang */
+.loading-animation {
+    animation: pulse 1.5s infinite ease-in-out;
+}
+
+@keyframes pulse {
+    0% { opacity: 0.6; }
+    50% { opacity: 1; }
+    100% { opacity: 0.6; }
+}

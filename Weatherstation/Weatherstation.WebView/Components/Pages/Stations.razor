@@ -1,0 +1,141 @@
+@page "/stations"
+@using Weatherstation.WebView.Models
+@using Weatherstation.WebView.Services
+@inject WeatherService WeatherService
+
+<PageTitle>Wetterstationen</PageTitle>
+
+<MudContainer>
+    <MudPaper Class="pa-4 mb-4">
+        <MudText Typo="Typo.h4">Wetterstationen</MudText>
+        <MudText Typo="Typo.subtitle1">Übersicht über alle verfügbaren Wetterstationen und deren aktuellen Status.</MudText>
+    </MudPaper>
+
+    @if (_isLoading)
+    {
+        <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+    }
+    else
+    {
+        <MudGrid>
+            @foreach (var station in _weatherStations)
+            {
+                <MudItem xs="12" md="6" lg="4">
+                    <MudCard Elevation="2" Class="mb-4">
+                        <MudCardHeader>
+                            <CardHeaderContent>
+                                <MudText Typo="Typo.h6">@station.StationName</MudText>
+                                <MudText Typo="Typo.caption">ID: @station.StationId</MudText>
+                            </CardHeaderContent>
+                            <CardHeaderActions>
+                                <MudIconButton Icon="@(station.SensorInfo.IsOnline ? Icons.Material.Filled.CheckCircle : Icons.Material.Filled.Error)" 
+                                              Color="@(station.SensorInfo.IsOnline ? Color.Success : Color.Error)" />
+                            </CardHeaderActions>
+                        </MudCardHeader>
+                        <MudCardContent>
+                            <MudGrid>
+                                <MudItem xs="6">
+                                    <MudText Typo="Typo.body1">
+                                        <MudIcon Icon="@Icons.Material.Filled.Thermostat" Size="Size.Small" Class="mr-2" />
+                                        @station.TemperatureCelsius.ToString("F1")°C
+                                    </MudText>
+                                    <MudText Typo="Typo.body2">Gefühlt: @station.FeelsLikeCelsius.ToString("F1")°C</MudText>
+                                </MudItem>
+                                <MudItem xs="6">
+                                    <MudText Typo="Typo.body1">
+                                        <MudIcon Icon="@Icons.Material.Filled.Air" Size="Size.Small" Class="mr-2" />
+                                        @station.WindSpeedKmh.ToString("F1") km/h
+                                    </MudText>
+                                    <MudText Typo="Typo.body2">Richtung: @station.WindDirectionCardinal</MudText>
+                                </MudItem>
+                                <MudItem xs="6">
+                                    <MudText Typo="Typo.body1">
+                                        <MudIcon Icon="@Icons.Material.Filled.WaterDrop" Size="Size.Small" Class="mr-2" />
+                                        @station.HumidityPercentage.ToString("F0")%
+                                    </MudText>
+                                    <MudText Typo="Typo.body2">Taupunkt: @station.DewPointCelsius.ToString("F1")°C</MudText>
+                                </MudItem>
+                                <MudItem xs="6">
+                                    <MudText Typo="Typo.body1">
+                                        <MudIcon Icon="@Icons.Material.Filled.Speed" Size="Size.Small" Class="mr-2" />
+                                        @station.PressureHPa.ToString("F0") hPa
+                                    </MudText>
+                                    <MudText Typo="Typo.body2">
+                                        Trend: @GetPressureTrendIcon(station.PressureTrend)
+                                    </MudText>
+                                </MudItem>
+                            </MudGrid>
+                            <MudDivider Class="my-3" />
+                            <MudText Typo="Typo.body1">
+                                <MudIcon Icon="@GetWeatherIcon(station.WeatherCondition)" Size="Size.Small" Class="mr-2" />
+                                @station.WeatherCondition
+                            </MudText>
+                            <MudText Typo="Typo.caption">
+                                Letzte Aktualisierung: @station.Timestamp.ToString("dd.MM.yyyy HH:mm")
+                            </MudText>
+                        </MudCardContent>
+                        <MudCardActions>
+                            <MudButton Variant="Variant.Text" Color="Color.Primary" 
+                                      OnClick="@(() => NavigationManager.NavigateTo($"/stations/{station.StationId}"))">
+                                Details
+                            </MudButton>
+                            <MudButton Variant="Variant.Text" Color="Color.Primary"
+                                      OnClick="@(() => NavigationManager.NavigateTo($"/forecasts?station={station.StationId}"))">
+                                Vorhersage
+                            </MudButton>
+                        </MudCardActions>
+                    </MudCard>
+                </MudItem>
+            }
+        </MudGrid>
+    }
+</MudContainer>
+
+@code {
+    [Inject] private NavigationManager NavigationManager { get; set; }
+
+    private bool _isLoading = true;
+    private List<WeatherData> _weatherStations = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadStationsAsync();
+    }
+
+    private async Task LoadStationsAsync()
+    {
+        _isLoading = true;
+
+        try
+        {
+            _weatherStations = await WeatherService.GetAllCurrentWeatherDataAsync();
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private string GetWeatherIcon(string condition)
+    {
+        return condition switch
+        {
+            "Klar" => Icons.Material.Filled.WbSunny,
+            "Sonnig" => Icons.Material.Filled.WbSunny,
+            "Teilweise bewölkt" => Icons.Material.Filled.Cloud,
+            "Bewölkt" => Icons.Material.Filled.Cloud,
+            "Regnerisch" => Icons.Material.Filled.Umbrella,
+            "Stürmisch" => Icons.Material.Filled.Thunderstorm,
+            "Schneefall" => Icons.Material.Filled.AcUnit,
+            "Neblig" => Icons.Material.Filled.Cloud,
+            _ => Icons.Material.Filled.QuestionMark
+        };
+    }
+
+    private string GetPressureTrendIcon(double trend)
+    {
+        if (trend > 0.5) return "↗️ Steigend";
+        if (trend < -0.5) return "↘️ Fallend";
+        return "→ Stabil";
+    }
+}

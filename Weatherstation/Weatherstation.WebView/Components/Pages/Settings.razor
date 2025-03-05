@@ -1,0 +1,267 @@
+@page "/settings"
+@using Weatherstation.WebView.Models
+@using Weatherstation.WebView.Services
+@inject WeatherService WeatherService
+
+<PageTitle>Einstellungen</PageTitle>
+
+<MudContainer>
+    <MudPaper Class="pa-4 mb-4">
+        <MudText Typo="Typo.h4">Einstellungen</MudText>
+        <MudText Typo="Typo.subtitle1">Passe das Dashboard nach deinen Bedürfnissen an.</MudText>
+    </MudPaper>
+
+    @if (_isLoading)
+    {
+        <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+    }
+    else
+    {
+        <MudTabs Elevation="2" Rounded="true" PanelClass="pa-4">
+            <MudTabPanel Text="Allgemein">
+                <MudForm @ref="_form" Model="@_settings" @bind-IsValid="@_success">
+                    <MudGrid>
+                        <MudItem xs="12">
+                            <MudText Typo="Typo.h6" Class="mb-4">Allgemeine Einstellungen</MudText>
+                        </MudItem>
+
+                        <MudItem xs="12" md="6">
+                            <MudSelect T="string" Label="Bevorzugte Station" @bind-Value="_settings.FavoriteLocations[0]">
+                                @foreach (var station in _stations)
+                                {
+                                    <MudSelectItem Value="@station.Name">@station.Name</MudSelectItem>
+                                }
+                            </MudSelect>
+                        </MudItem>
+
+                        <MudItem xs="12" md="6">
+                            <MudSelect T="int" Label="Standard-Vorhersagetage" @bind-Value="_settings.DefaultForecastDays">
+                                <MudSelectItem Value="3">3 Tage</MudSelectItem>
+                                <MudSelectItem Value="5">5 Tage</MudSelectItem>
+                                <MudSelectItem Value="7">7 Tage</MudSelectItem>
+                                <MudSelectItem Value="14">14 Tage</MudSelectItem>
+                            </MudSelect>
+                        </MudItem>
+
+                        <MudItem xs="12" md="6">
+                            <MudSwitch T="bool" @bind-Checked="@_settings.UseMetricSystem" Label="Metrisches System verwenden" Color="Color.Primary" />
+                        </MudItem>
+
+                        @* <MudItem xs="12" md="6"> *@
+                        @*     <MudSelect T="string" Label="Diagrammtyp" @bind-Value="_settings.PreferredChartType"> *@
+                        @*         <MudSelectItem Value="Line">Liniendiagramm</MudSelectItem> *@
+                        @*         <MudSelectItem Value="Bar">Balkendiagramm</MudSelectItem> *@
+                        @*     </MudSelect> *@
+                        @* </MudItem> *@
+                        @* *@
+                        @* <MudItem xs="12" md="6"> *@
+                        @*     <MudSelect T="string" Label="Theme" @bind-Value="_settings.ThemePreference"> *@
+                        @*         <MudSelectItem Value="Auto">Automatisch (Systemeinstellung)</MudSelectItem> *@
+                        @*         <MudSelectItem Value="Light">Hell</MudSelectItem> *@
+                        @*         <MudSelectItem Value="Dark">Dunkel</MudSelectItem> *@
+                        @*     </MudSelect> *@
+                        @* </MudItem> *@
+                    </MudGrid>
+                </MudForm>
+            </MudTabPanel>
+
+            <MudTabPanel Text="Anzeige">
+                <MudGrid>
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.h6" Class="mb-4">Anzeigeeinstellungen</MudText>
+                    </MudItem>
+
+                    <MudItem xs="12" md="6">
+                        <MudPaper Class="pa-4" Elevation="0">
+                            <MudText Typo="Typo.subtitle1" Class="mb-2">Dashboard-Elemente</MudText>
+                            <MudSwitch T="bool" @bind-Checked="@_settings.ShowFeelsLike" Label="Gefühlte Temperatur anzeigen" Color="Color.Primary" />
+                            <MudSwitch T="bool" @bind-Checked="@_settings.ShowUvIndex" Label="UV-Index anzeigen" Color="Color.Primary" />
+                            <MudSwitch T="bool" @bind-Checked="@_settings.ShowHumidity" Label="Luftfeuchtigkeit anzeigen" Color="Color.Primary" />
+                            <MudSwitch T="bool" @bind-Checked="@_settings.ShowPressure" Label="Luftdruck anzeigen" Color="Color.Primary" />
+                            <MudSwitch T="bool" @bind-Checked="@_settings.ShowWindInfo" Label="Windinformationen anzeigen" Color="Color.Primary" />
+                            <MudSwitch T="bool" @bind-Checked="@_settings.ShowPrecipitation" Label="Niederschlagsinformationen anzeigen" Color="Color.Primary" />
+                            <MudSwitch T="bool" @bind-Checked="@_settings.ShowSunriseSunset" Label="Sonnenauf- und untergang anzeigen" Color="Color.Primary" />
+                        </MudPaper>
+                    </MudItem>
+
+                    <MudItem xs="12" md="6">
+                        <MudPaper Class="pa-4" Elevation="0">
+                            <MudText Typo="Typo.subtitle1" Class="mb-2">Benachrichtigungen</MudText>
+                            <MudSwitch T="bool" @bind-Checked="@_settings.EnableNotifications" Label="Benachrichtigungen aktivieren" Color="Color.Primary" />
+                            <MudSwitch T="bool" @bind-Checked="@_settings.NotifyOnAlerts" Label="Bei Wetterwarnungen benachrichtigen" Color="Color.Primary" Disabled="!_settings.EnableNotifications" />
+                            <MudSwitch T="bool" @bind-Checked="@_settings.NotifyOnRain" Label="Bei Regen benachrichtigen" Color="Color.Primary" Disabled="!_settings.EnableNotifications" />
+                            <MudSwitch T="bool" @bind-Checked="@_settings.NotifyOnTemperatureChange" Label="Bei Temperaturänderungen benachrichtigen" Color="Color.Primary" Disabled="!_settings.EnableNotifications" />
+                            
+                            <MudNumericField @bind-Value="_settings.TemperatureChangeThreshold" Label="Temperaturschwellwert (°C)" 
+                                            Variant="Variant.Outlined" Min="1" Max="20" Class="mt-2"
+                                            Disabled="!_settings.EnableNotifications || !_settings.NotifyOnTemperatureChange" />
+                        </MudPaper>
+                    </MudItem>
+                </MudGrid>
+            </MudTabPanel>
+
+            <MudTabPanel Text="Favoriten">
+                <MudGrid>
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.h6" Class="mb-4">Favoritenstationen verwalten</MudText>
+                    </MudItem>
+
+                    <MudItem xs="12">
+                        <MudPaper Class="pa-4" Elevation="0">
+                            <MudText Typo="Typo.subtitle1" Class="mb-2">Favoriten</MudText>
+                            <MudText Typo="Typo.body2" Class="mb-4">Wähle bis zu 5 Stationen als Favoriten aus.</MudText>
+
+                            @for (int i = 0; i < 5; i++)
+                            {
+                                int index = i;
+                                if (index < _settings.FavoriteLocations.Count)
+                                {
+                                    <div class="d-flex align-center mb-2">
+                                        <MudSelect T="string" Label="Favorit" Class="flex-grow-1 mr-2" 
+                                                  @bind-Value="_settings.FavoriteLocations[index]">
+                                            @foreach (var station in _stations)
+                                            {
+                                                <MudSelectItem Value="@station.Name">@station.Name</MudSelectItem>
+                                            }
+                                        </MudSelect>
+                                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" 
+                                                     OnClick="@(() => RemoveFavorite(index))" />
+                                    </div>
+                                }
+                                else if (i == _settings.FavoriteLocations.Count)
+                                {
+                                    <MudButton Variant="Variant.Filled" Color="Color.Primary" 
+                                              OnClick="AddFavorite" Class="mt-2"
+                                              Disabled="_settings.FavoriteLocations.Count >= 5">
+                                        <MudIcon Icon="@Icons.Material.Filled.Add" Class="mr-2" />
+                                        Favorit hinzufügen
+                                    </MudButton>
+                                }
+                            }
+                        </MudPaper>
+                    </MudItem>
+                </MudGrid>
+            </MudTabPanel>
+        </MudTabs>
+
+        <div class="d-flex justify-end mt-4">
+            <MudButton Variant="Variant.Text" Color="Color.Secondary" Class="mr-2" OnClick="ResetSettings">
+                Zurücksetzen
+            </MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveSettings" Disabled="!_success">
+                Einstellungen speichern
+            </MudButton>
+        </div>
+    }
+</MudContainer>
+
+@code {
+    private bool _isLoading = true;
+    private bool _success = false;
+    private MudForm _form;
+    private WeatherDisplaySettings _settings = new();
+    private List<(string Id, string Name)> _stations = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadSettingsAsync();
+    }
+
+    private async Task LoadSettingsAsync()
+    {
+        _isLoading = true;
+
+        try
+        {
+            _stations = await WeatherService.GetWeatherStationsAsync();
+            var settings = await WeatherService.GetUserDisplaySettingsAsync("default-user");
+
+            if (settings != null)
+            {
+                _settings = settings;
+            }
+            else
+            {
+                _settings = new WeatherDisplaySettings
+                {
+                    UserId = "default-user",
+                    UseMetricSystem = true,
+                    ShowFeelsLike = true,
+                    ShowUvIndex = true,
+                    ShowHumidity = true,
+                    ShowPressure = true,
+                    ShowWindInfo = true,
+                    ShowPrecipitation = true,
+                    ShowSunriseSunset = true,
+                    EnableNotifications = false,
+                    NotifyOnAlerts = true,
+                    NotifyOnRain = false,
+                    NotifyOnTemperatureChange = false,
+                    TemperatureChangeThreshold = 5.0,
+                    PreferredChartType = "Line",
+                    ThemePreference = "Auto",
+                    DefaultForecastDays = 7,
+                    FavoriteLocations = new List<string> { _stations.FirstOrDefault().Name }
+                };
+            }
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task SaveSettings()
+    {
+        await WeatherService.UpdateDisplaySettingsAsync(_settings);
+        ShowSuccessMessage();
+    }
+
+    private void ResetSettings()
+    {
+        _settings = new WeatherDisplaySettings
+        {
+            UserId = "default-user",
+            UseMetricSystem = true,
+            ShowFeelsLike = true,
+            ShowUvIndex = true,
+            ShowHumidity = true,
+            ShowPressure = true,
+            ShowWindInfo = true,
+            ShowPrecipitation = true,
+            ShowSunriseSunset = true,
+            EnableNotifications = false,
+            NotifyOnAlerts = true,
+            NotifyOnRain = false,
+            NotifyOnTemperatureChange = false,
+            TemperatureChangeThreshold = 5.0,
+            PreferredChartType = "Line",
+            ThemePreference = "Auto",
+            DefaultForecastDays = 7,
+            FavoriteLocations = new List<string> { _stations.FirstOrDefault().Name }
+        };
+    }
+
+    private void AddFavorite()
+    {
+        if (_settings.FavoriteLocations.Count < 5)
+        {
+            _settings.FavoriteLocations.Add(_stations.FirstOrDefault().Name);
+        }
+    }
+
+    private void RemoveFavorite(int index)
+    {
+        if (index < _settings.FavoriteLocations.Count)
+        {
+            _settings.FavoriteLocations.RemoveAt(index);
+        }
+    }
+
+    private void ShowSuccessMessage()
+    {
+        var snackbar = Snackbar.Add("Einstellungen erfolgreich gespeichert!", Severity.Success);
+    }
+
+    [Inject] private ISnackbar Snackbar { get; set; }
+}
